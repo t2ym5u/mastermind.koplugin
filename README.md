@@ -2,6 +2,15 @@
 
 A Mastermind plugin for [KOReader](https://github.com/koreader/koreader).
 
+
+## Screenshot
+
+*(Screenshot to be added.)*
+
+## Rules
+
+Guess the secret sequence of colours. After each guess: **black peg** = right colour in right position; **white peg** = right colour in wrong position. Deduce the exact code within the allowed number of guesses.
+
 ## Concept
 
 Deduce the secret code — a sequence of coloured pegs (or digits) — in as few
@@ -10,7 +19,7 @@ guesses as possible. After each guess you receive feedback:
 - **Black peg** — correct symbol in the correct position
 - **White peg** — correct symbol in the wrong position
 
-## Planned Features
+## Features
 
 - **Classic mode** — 4 positions, 6 colours/digits, 10 attempts
 - **Configurable game** — 3–6 positions, 4–8 symbols, 6–12 attempts
@@ -30,6 +39,7 @@ guesses as possible. After each guess you receive feedback:
 | Submit guess | Tap **Submit** (only enabled when all positions are filled) |
 | New game | Tap **New game** |
 | Change settings | Tap **Settings** |
+| Show rules | Tap **Rules** |
 
 ## Why e-ink friendly?
 
