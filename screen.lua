@@ -31,6 +31,32 @@ local DeviceScreen = Device.screen
 -- MastermindScreen
 -- ---------------------------------------------------------------------------
 
+local GAME_RULES_EN = _([[
+Mastermind — Rules
+
+Crack the secret code (a sequence of colored pegs).
+
+After each guess, you receive feedback:
+• Black peg — correct colour in the correct position.
+• White peg — correct colour but in the wrong position.
+
+Use the feedback to narrow down the code.
+You have a limited number of guesses to find the exact code.
+]])
+
+local GAME_RULES_FR = [[
+Mastermind — Règles
+
+Déchiffrez le code secret (une séquence de couleurs de pions).
+
+Après chaque proposition, vous recevez un retour :
+• Pion noir — bonne couleur à la bonne position.
+• Pion blanc — bonne couleur mais à la mauvaise position.
+
+Utilisez le retour pour affiner vos propositions.
+Vous avez un nombre limité d'essais pour trouver le code exact.
+]]
+
 local MastermindScreen = ScreenBase:extend{}
 
 -- ---------------------------------------------------------------------------
@@ -112,7 +138,8 @@ function MastermindScreen:buildLayout()
                 { text = _("Submit"),   callback = function() self:onSubmit() end },
                 { text = _("Clear"),    callback = function() self:onClear() end },
                 { text = _("Settings"), callback = function() self:openSettings() end },
-                self:makeCloseButtonConfig(),
+                self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
+            self:makeCloseButtonConfig(),
             },
         },
     }
