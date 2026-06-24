@@ -139,7 +139,7 @@ function MastermindScreen:buildLayout()
                 { text = _("Clear"),    callback = function() self:onClear() end },
                 { text = _("Settings"), callback = function() self:openSettings() end },
                 self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
-            self:makeCloseButtonConfig(),
+                self:makeCloseButtonConfig(),
             },
         },
     }
