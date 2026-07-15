@@ -128,18 +128,22 @@ function MastermindScreen:buildLayout()
         buttons = { sym_buttons },
     }
 
+    local title_bar = self:buildTitleBar(_("Mastermind"), function()
+        return {
+            { text = _("New game"), callback = function() self:onNewGame() end },
+            { text = _("Settings"), callback = function() self:openSettings() end },
+            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
+        }
+    end)
+
     -- Action buttons
     local action_buttons = ButtonTable:new{
         shrink_unneeded_width = true,
         width   = button_width,
         buttons = {
             {
-                { text = _("New game"), callback = function() self:onNewGame() end },
                 { text = _("Submit"),   callback = function() self:onSubmit() end },
                 { text = _("Clear"),    callback = function() self:onClear() end },
-                { text = _("Settings"), callback = function() self:openSettings() end },
-                self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
-                self:makeCloseButtonConfig(),
             },
         },
     }
@@ -147,18 +151,19 @@ function MastermindScreen:buildLayout()
     if is_landscape then
         local right_panel = VerticalGroup:new{
             align = "center",
-            action_buttons,
-            VerticalSpan:new{ width = Size.span.vertical_large },
             self.status_text,
+            VerticalSpan:new{ width = Size.span.vertical_large },
+            action_buttons,
             VerticalSpan:new{ width = Size.span.vertical_large },
             symbol_bar,
         }
-        self.layout = HorizontalGroup:new{
+        local content = HorizontalGroup:new{
             align = "center",
             board_frame,
             HorizontalSpan:new{ width = Size.span.horizontal_default },
             right_panel,
         }
+        self:buildLandscapeLayout(title_bar, content)
     else
         local content = VerticalGroup:new{
             align = "center",
@@ -166,10 +171,15 @@ function MastermindScreen:buildLayout()
             VerticalSpan:new{ width = Size.span.vertical_large },
             self.status_text,
         }
-        self:buildPortraitLayout(action_buttons, content, symbol_bar)
+        local footer = VerticalGroup:new{
+            align = "center",
+            action_buttons,
+            VerticalSpan:new{ width = Size.span.vertical_large },
+            symbol_bar,
+        }
+        self:buildPortraitLayout(title_bar, content, footer)
     end
 
-    self[1] = self.layout
     self:updateStatus()
 end
 
