@@ -7,6 +7,7 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
+local Button         = require("ui/widget/button")
 local ButtonTable    = require("ui/widget/buttontable")
 local Device         = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
@@ -111,22 +112,22 @@ function MastermindScreen:buildLayout()
         and math.max(right_w - Size.span.horizontal_default, 100)
         or  math.floor(sw * 0.9)
 
-    -- Symbol selector row(s)
+    -- Symbol selector row, drawn as real bordered buttons
     local num_syms   = board.num_symbols
-    local sym_buttons = {}
+    local sym_btn_width = math.floor(button_width / num_syms)
+    local symbol_bar = HorizontalGroup:new{}
     for i = 1, num_syms do
         local s = i
-        sym_buttons[#sym_buttons + 1] = {
-            id       = "sym_" .. s,
-            text     = tostring(s),
-            callback = function() self:onSymbolSelected(s) end,
-        }
+        table.insert(symbol_bar, Button:new{
+            text       = tostring(s),
+            width      = sym_btn_width,
+            margin     = Size.margin.small,
+            bordersize = Size.border.button,
+            radius     = Size.radius.button,
+            padding    = Size.padding.buttontable,
+            callback   = function() self:onSymbolSelected(s) end,
+        })
     end
-    local symbol_bar = ButtonTable:new{
-        shrink_unneeded_width = true,
-        width   = button_width,
-        buttons = { sym_buttons },
-    }
 
     local title_bar = self:buildTitleBar(_("Mastermind"), function()
         return {
