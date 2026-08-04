@@ -87,34 +87,10 @@ end
 -- Layout
 -- ---------------------------------------------------------------------------
 
-function MastermindScreen:buildLayout()
-    local board = self.board
-
-    self.board_widget = MastermindBoardWidget:new{
-        board        = board,
-        onSlotTapped = function(slot)
-            self:onSlotTapped(slot)
-        end,
-    }
-
-    local is_landscape  = self:isLandscape()
-    local sw            = DeviceScreen:getWidth()
-
-    local board_frame = FrameContainer:new{
-        padding = Size.padding.default,
-        margin  = Size.margin.default,
-        self.board_widget,
-    }
-
-    local bw_size       = self.board_widget.size_w + (Size.padding.default + Size.margin.default) * 2
-    local right_w       = sw - bw_size - Size.span.horizontal_default
-    local button_width  = is_landscape
-        and math.max(right_w - Size.span.horizontal_default, 100)
-        or  math.floor(sw * 0.9)
-
-    -- Symbol selector row, drawn as real bordered buttons
-    local num_syms   = board.num_symbols
-    local sym_btn_width = math.floor(button_width / num_syms)
+-- Build the row of number buttons used to pick a symbol for the selected slot.
+local function buildSymbolBar(self, board, button_width)
+    local num_syms       = board.num_symbols
+    local sym_btn_width  = math.floor(button_width / num_syms)
     local symbol_bar = HorizontalGroup:new{}
     for i = 1, num_syms do
         local s = i
@@ -128,17 +104,12 @@ function MastermindScreen:buildLayout()
             callback   = function() self:onSymbolSelected(s) end,
         })
     end
+    return symbol_bar
+end
 
-    local title_bar = self:buildTitleBar(_("Mastermind"), function()
-        return {
-            { text = _("New game"), callback = function() self:onNewGame() end },
-            { text = _("Settings"), callback = function() self:openSettings() end },
-            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
-        }
-    end)
-
-    -- Action buttons
-    local action_buttons = ButtonTable:new{
+-- Build the Submit/Clear row.
+local function buildActionButtons(self, button_width)
+    return ButtonTable:new{
         shrink_unneeded_width = true,
         width   = button_width,
         buttons = {
@@ -147,6 +118,70 @@ function MastermindScreen:buildLayout()
                 { text = _("Clear"),    callback = function() self:onClear() end },
             },
         },
+    }
+end
+
+function MastermindScreen:buildLayout()
+    local board = self.board
+
+    local is_landscape = self:isLandscape()
+    local sw            = DeviceScreen:getWidth()
+
+    local title_bar = self:buildTitleBar(_("Mastermind"), function()
+        return {
+            { text = _("New game"), callback = function() self:onNewGame() end },
+            { text = _("Settings"), callback = function() self:openSettings() end },
+            self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
+        }
+    end)
+    local header_h = title_bar:getSize().h
+
+    local frame_overhead_h = (Size.padding.default + Size.margin.default) * 2
+    local button_width, action_buttons, symbol_bar
+
+    if is_landscape then
+        -- Header is the only thing stacked above the content row, so the
+        -- board can use almost the full remaining height.
+        local avail_h = self.dimen.h - header_h - Size.span.vertical_large
+        self.board_widget = MastermindBoardWidget:new{
+            board        = board,
+            max_h        = avail_h,
+            onSlotTapped = function(slot) self:onSlotTapped(slot) end,
+        }
+
+        local bw_size = self.board_widget.size_w + frame_overhead_h
+        local right_w = sw - bw_size - Size.span.horizontal_default
+        button_width  = math.max(right_w - Size.span.horizontal_default, 100)
+    else
+        -- Header, footer (buttons + symbol bar) and the status line are all
+        -- stacked with the board, so their height must be reserved upfront —
+        -- otherwise the footer gets pushed off the bottom of the screen.
+        button_width   = math.floor(sw * 0.9)
+        action_buttons = buildActionButtons(self, button_width)
+        symbol_bar     = buildSymbolBar(self, board, button_width)
+        local footer_h = action_buttons:getSize().h + Size.span.vertical_large + symbol_bar:getSize().h
+        local status_h = self.status_text:getSize().h
+
+        local avail_h = self.dimen.h - header_h - footer_h - status_h
+            - 2 * Size.span.vertical_large - frame_overhead_h
+        self.board_widget = MastermindBoardWidget:new{
+            board        = board,
+            max_h        = avail_h,
+            onSlotTapped = function(slot) self:onSlotTapped(slot) end,
+        }
+    end
+
+    self.status_text:setMaxWidth(button_width)
+
+    if not action_buttons then
+        action_buttons = buildActionButtons(self, button_width)
+        symbol_bar     = buildSymbolBar(self, board, button_width)
+    end
+
+    local board_frame = FrameContainer:new{
+        padding = Size.padding.default,
+        margin  = Size.margin.default,
+        self.board_widget,
     }
 
     if is_landscape then
