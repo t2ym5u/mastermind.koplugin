@@ -35,6 +35,7 @@ local SYMBOL_TEXT_COLORS = {
 local MastermindBoardWidget = InputContainer:extend{
     board        = nil,
     onSlotTapped = nil,
+    max_h        = nil, -- optional height budget imposed by the caller's layout
 }
 
 function MastermindBoardWidget:init()
@@ -44,8 +45,9 @@ function MastermindBoardWidget:init()
 
     local sw = Screen:getWidth()
     local sh = Screen:getHeight()
+    local avail_h = math.min(self.max_h or sh, math.floor(sh * 0.80))
 
-    self.row_h      = math.floor(sh * 0.80 / max_attempts)
+    self.row_h      = math.max(1, math.floor(avail_h / max_attempts))
     self.slot_w     = math.floor(self.row_h * 0.9)
     self.peg_area_w = math.floor(self.slot_w * 1.2)
     self.total_w    = code_len * self.slot_w + self.peg_area_w
