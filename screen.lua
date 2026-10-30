@@ -7,8 +7,6 @@ local function lrequire(name)
     return package.loaded[key]
 end
 
-local Button         = require("ui/widget/button")
-local ButtonTable    = require("ui/widget/buttontable")
 local Device         = require("device")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
@@ -41,6 +39,8 @@ After each guess, you receive feedback:
 • Black peg — correct colour in the correct position.
 • White peg — correct colour but in the wrong position.
 
+Tap a slot in the current row to select it (heavy outline), then tap a number below to fill it; the next empty slot is selected automatically. Submit checks the guess, Clear empties the row. The feedback is shown next to each guess as B (black) and W (white).
+
 Use the feedback to narrow down the code.
 You have a limited number of guesses to find the exact code.
 ]])
@@ -53,6 +53,8 @@ Déchiffrez le code secret (une séquence de couleurs de pions).
 Après chaque proposition, vous recevez un retour :
 • Pion noir — bonne couleur à la bonne position.
 • Pion blanc — bonne couleur mais à la mauvaise position.
+
+Appuyez sur une case de la ligne en cours pour la sélectionner (contour épais), puis sur un chiffre en dessous pour la remplir ; la case vide suivante est sélectionnée automatiquement. Valider vérifie la proposition, Effacer tout vide la ligne. Le retour s'affiche à côté de chaque proposition : B (noir) et W (blanc).
 
 Utilisez le retour pour affiner vos propositions.
 Vous avez un nombre limité d'essais pour trouver le code exact.
@@ -87,45 +89,9 @@ end
 -- Layout
 -- ---------------------------------------------------------------------------
 
--- Build the row of number buttons used to pick a symbol for the selected slot.
-local function buildSymbolBar(self, board, button_width)
-    local num_syms       = board.num_symbols
-    local sym_btn_width  = math.floor(button_width / num_syms)
-    local symbol_bar = HorizontalGroup:new{}
-    for i = 1, num_syms do
-        local s = i
-        table.insert(symbol_bar, Button:new{
-            text       = tostring(s),
-            width      = sym_btn_width,
-            margin     = Size.margin.small,
-            bordersize = Size.border.button,
-            radius     = Size.radius.button,
-            padding    = Size.padding.buttontable,
-            callback   = function() self:onSymbolSelected(s) end,
-        })
-    end
-    return symbol_bar
-end
-
--- Build the Submit/Clear row.
-local function buildActionButtons(self, button_width)
-    return ButtonTable:new{
-        shrink_unneeded_width = true,
-        width   = button_width,
-        buttons = {
-            {
-                { text = _("Submit"),   callback = function() self:onSubmit() end },
-                { text = _("Clear"),    callback = function() self:onClear() end },
-            },
-        },
-    }
-end
-
 function MastermindScreen:buildLayout()
     local board = self.board
-
     local is_landscape = self:isLandscape()
-    local sw            = DeviceScreen:getWidth()
 
     local title_bar = self:buildTitleBar(_("Mastermind"), function()
         return {
@@ -134,86 +100,55 @@ function MastermindScreen:buildLayout()
             self:makeRulesButtonConfig(GAME_RULES_EN, GAME_RULES_FR),
         }
     end)
-    local header_h = title_bar:getSize().h
 
-    local frame_overhead_h = (Size.padding.default + Size.margin.default) * 2
-    local button_width, action_buttons, symbol_bar
-
-    if is_landscape then
-        -- Header is the only thing stacked above the content row, so the
-        -- board can use almost the full remaining height.
-        local avail_h = self.dimen.h - header_h - Size.span.vertical_large
-        self.board_widget = MastermindBoardWidget:new{
-            board        = board,
-            max_h        = avail_h,
-            onSlotTapped = function(slot) self:onSlotTapped(slot) end,
-        }
-
-        local bw_size = self.board_widget.size_w + frame_overhead_h
-        local right_w = sw - bw_size - Size.span.horizontal_default
-        button_width  = math.max(right_w - Size.span.horizontal_default, 100)
-    else
-        -- Header, footer (buttons + symbol bar) and the status line are all
-        -- stacked with the board, so their height must be reserved upfront —
-        -- otherwise the footer gets pushed off the bottom of the screen.
-        button_width   = math.floor(sw * 0.9)
-        action_buttons = buildActionButtons(self, button_width)
-        symbol_bar     = buildSymbolBar(self, board, button_width)
-        local footer_h = action_buttons:getSize().h + Size.span.vertical_large + symbol_bar:getSize().h
-        local status_h = self.status_text:getSize().h
-
-        local avail_h = self.dimen.h - header_h - footer_h - status_h
-            - 2 * Size.span.vertical_large - frame_overhead_h
-        self.board_widget = MastermindBoardWidget:new{
-            board        = board,
-            max_h        = avail_h,
-            onSlotTapped = function(slot) self:onSlotTapped(slot) end,
-        }
+    -- Symbol pad: picks the symbol for the selected slot.
+    local keys = {}
+    for i = 1, board.num_symbols do
+        local s = i
+        keys[#keys + 1] = { text = tostring(s), callback = function() self:onSymbolSelected(s) end }
     end
 
-    self.status_text:setMaxWidth(button_width)
+    self.status_text:setMaxWidth(self:getControlsWidth())
+    local controls = VerticalGroup:new{
+        align = "center",
+        self.status_text,
+        VerticalSpan:new{ width = Size.span.vertical_large },
+        self:buildNumberPad(keys),
+        VerticalSpan:new{ width = Size.span.vertical_default },
+        self:buildActionBar({
+            { text = _("Submit"), callback = function() self:onSubmit() end },
+            { text = _("Clear"),  callback = function() self:onClear() end },
+        }),
+    }
 
-    if not action_buttons then
-        action_buttons = buildActionButtons(self, button_width)
-        symbol_bar     = buildSymbolBar(self, board, button_width)
-    end
-
+    -- The widget draws its own outline, so the frame only pads.
+    local frame_pad = Size.padding.large
+    local budget_w, budget_h = self:getBoardBudget(title_bar, controls)
+    self.board_widget = MastermindBoardWidget:new{
+        board        = board,
+        max_w        = budget_w - 2 * frame_pad,
+        max_h        = budget_h - 2 * frame_pad,
+        onSlotTapped = function(slot) self:onSlotTapped(slot) end,
+        getSelectedSlot = function() return self.selected_slot end,
+    }
     local board_frame = FrameContainer:new{
-        padding = Size.padding.default,
-        margin  = Size.margin.default,
+        padding    = frame_pad,
+        margin     = 0,
+        bordersize = 0,
         self.board_widget,
     }
 
     if is_landscape then
-        local right_panel = VerticalGroup:new{
-            align = "center",
-            self.status_text,
-            VerticalSpan:new{ width = Size.span.vertical_large },
-            action_buttons,
-            VerticalSpan:new{ width = Size.span.vertical_large },
-            symbol_bar,
-        }
         local content = HorizontalGroup:new{
             align = "center",
             board_frame,
-            HorizontalSpan:new{ width = Size.span.horizontal_default },
-            right_panel,
+            HorizontalSpan:new{ width = self:getGutter() },
+            controls,
         }
         self:buildLandscapeLayout(title_bar, content)
     else
-        local content = VerticalGroup:new{
-            align = "center",
-            board_frame,
-            VerticalSpan:new{ width = Size.span.vertical_large },
-            self.status_text,
-        }
-        local footer = VerticalGroup:new{
-            align = "center",
-            action_buttons,
-            VerticalSpan:new{ width = Size.span.vertical_large },
-            symbol_bar,
-        }
-        self:buildPortraitLayout(title_bar, content, footer)
+        self:buildPortraitLayout(title_bar, board_frame,
+            VerticalGroup:new{ align = "center", controls, VerticalSpan:new{ width = self:getGutter() } })
     end
 
     self:updateStatus()
@@ -268,6 +203,11 @@ function MastermindScreen:onNewGame()
     UIManager:setDirty(self, function() return "ui", self.dimen end)
 end
 
+-- Solved or out of rows.
+function MastermindScreen:isRoundOver()
+    return self.board:isGameOver() and true or false
+end
+
 function MastermindScreen:onSubmit()
     local ok, result = self.board:submitGuess()
     if not ok then
@@ -280,6 +220,7 @@ function MastermindScreen:onSubmit()
     self.plugin:saveState(self.board:serialize())
     self.board_widget:refresh()
     self:updateStatus()
+    self:refreshActionBar()
 
     if self.board.solved then
         local n = self.board:getAttempts()
@@ -387,9 +328,12 @@ function MastermindScreen:updateStatus(message)
         for _, v in ipairs(secret) do parts[#parts + 1] = tostring(v) end
         status = T(_("Game over. Secret was: %1"), table.concat(parts, " "))
     else
-        local attempt = self.board:getAttempts() + 1
-        local max     = self.board.max_attempts
-        status = T(_("Attempt %1/%2 — slot %3 selected"), attempt, max, self.selected_slot)
+        -- The selected slot is outlined on the board, so it isn't repeated here.
+        local b = self.board
+        status = self:joinStatus(
+            T(_("Code: %1"), b.code_len),
+            T(_("Symbols: %1"), b.num_symbols),
+            T(_("Attempt: %1/%2"), b:getAttempts() + 1, b.max_attempts))
     end
     ScreenBase.updateStatus(self, status)
 end

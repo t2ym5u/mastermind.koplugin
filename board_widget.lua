@@ -35,8 +35,29 @@ local SYMBOL_TEXT_COLORS = {
 local MastermindBoardWidget = InputContainer:extend{
     board        = nil,
     onSlotTapped = nil,
+    max_w        = nil, -- optional width budget imposed by the caller's layout
     max_h        = nil, -- optional height budget imposed by the caller's layout
+    getSelectedSlot = nil, -- function() -> slot index in the active row, or nil
 }
+
+-- Largest face whose ink for `sample` fits max_w x max_h. Measured unbounded
+-- (with a width limit sizeUtf8Text truncates, so a width test against it can
+-- never fail); ink height is y_top + y_bottom. Measuring keeps the digits in
+-- their slots on every DPI, where a size scaled off the slot width was
+-- scaled a second time by Font:getFace().
+local function fitFace(font, sample, max_w, max_h)
+    local lo, hi, best = 6, math.max(6, math.floor(max_h)), 6
+    while lo <= hi do
+        local mid = math.floor((lo + hi) / 2)
+        local m   = RenderText:sizeUtf8Text(0, Screen:getWidth(), Font:getFace(font, mid), sample, true, false)
+        if m.x <= max_w and (m.y_top + m.y_bottom) <= max_h then
+            best, lo = mid, mid + 1
+        else
+            hi = mid - 1
+        end
+    end
+    return Font:getFace(font, best)
+end
 
 function MastermindBoardWidget:init()
     local board        = self.board
@@ -45,9 +66,12 @@ function MastermindBoardWidget:init()
 
     local sw = Screen:getWidth()
     local sh = Screen:getHeight()
-    local avail_h = math.min(self.max_h or sh, math.floor(sh * 0.80))
+    local avail_h = self.max_h or math.floor(sh * 0.80)
+    local avail_w = self.max_w or sw
 
-    self.row_h      = math.max(1, math.floor(avail_h / max_attempts))
+    -- The board is (code_len + 1.2) slots wide, a slot being 0.9 row tall.
+    self.row_h      = math.max(1, math.floor(math.min(avail_h / max_attempts,
+                                                      avail_w / (0.9 * (code_len + 1.2)))))
     self.slot_w     = math.floor(self.row_h * 0.9)
     self.peg_area_w = math.floor(self.slot_w * 1.2)
     self.total_w    = code_len * self.slot_w + self.peg_area_w
@@ -57,11 +81,8 @@ function MastermindBoardWidget:init()
     self.dimen      = Geom:new{ w = self.size_w, h = self.size_h }
     self.paint_rect = Geom:new{ x = 0, y = 0, w = self.size_w, h = self.size_h }
 
-    local num_size = math.max(8, math.floor(self.slot_w * 0.55))
-    self.num_face  = Font:getFace("cfont", num_size)
-
-    local peg_size = math.max(7, math.floor(self.slot_w * 0.30))
-    self.peg_face  = Font:getFace("smallinfofont", peg_size)
+    self.num_face  = fitFace("cfont", "8", self.slot_w * 0.5, self.row_h * 0.45)
+    self.peg_face  = fitFace("smallinfofont", "W:8", self.peg_area_w * 0.8, self.row_h * 0.3)
 
     self.ges_events = {
         Tap = {
@@ -127,6 +148,11 @@ function MastermindBoardWidget:paintTo(bb, x, y)
             local border = math.max(1, math.floor(slot_w * 0.06))
             if i == active_row then
                 border = math.max(2, border + 1)
+                -- The slot the next number goes into: a much heavier outline,
+                -- so the selection is visible on the board itself.
+                if self.getSelectedSlot and self.getSelectedSlot() == j then
+                    border = math.max(4, border * 3)
+                end
             end
             -- Draw border as four lines
             bb:paintRect(inner_x, inner_y,              inner_w, border, Blitbuffer.COLOR_BLACK)
@@ -141,10 +167,9 @@ function MastermindBoardWidget:paintTo(bb, x, y)
                 local avail_w    = inner_w - 2 * border
                 local avail_h    = inner_h - 2 * border
                 local m          = RenderText:sizeUtf8Text(0, avail_w, self.num_face, text, true, false)
-                local text_w     = m.x
-                local text_h     = m.y_bottom - m.y_top
-                local tx         = inner_x + border + math.floor((avail_w - text_w) / 2)
-                local ty         = inner_y + border + math.floor((avail_h - text_h) / 2) + m.y_bottom
+                -- Baseline that centres the ink: centre + (y_top - y_bottom) / 2.
+                local tx         = inner_x + border + math.floor((avail_w - m.x) / 2)
+                local ty         = inner_y + border + math.floor(avail_h / 2 + (m.y_top - m.y_bottom) / 2)
                 RenderText:renderUtf8Text(bb, tx, ty, self.num_face, text, true, false, txt_color)
             end
         end
@@ -155,13 +180,16 @@ function MastermindBoardWidget:paintTo(bb, x, y)
         if fb then
             local blacks = fb.blacks
             local whites = fb.whites
-            -- Show "B:N W:N" for clarity on e-ink
-            local fb_text = "B:" .. blacks .. " W:" .. whites
-            local fb_m    = RenderText:sizeUtf8Text(0, peg_area_w - 2, self.peg_face, fb_text, true, false)
-            local fb_x    = fx + math.floor((peg_area_w - fb_m.x) / 2)
-            local fb_h    = fb_m.y_bottom - fb_m.y_top
-            local fb_y    = ry + math.floor((row_h - fb_h) / 2) + fb_m.y_bottom
-            RenderText:renderUtf8Text(bb, fb_x, fb_y, self.peg_face, fb_text, true, false, Blitbuffer.COLOR_BLACK)
+            -- Show "B:N" over "W:N" for clarity on e-ink: two short lines
+            -- read much larger in the narrow feedback column than one.
+            local lines = { "B:" .. blacks, "W:" .. whites }
+            for li, fb_text in ipairs(lines) do
+                local fb_m = RenderText:sizeUtf8Text(0, peg_area_w - 2, self.peg_face, fb_text, true, false)
+                local fb_x = fx + math.floor((peg_area_w - fb_m.x) / 2)
+                local cy   = ry + math.floor(row_h * (li == 1 and 0.3 or 0.7))
+                local fb_y = cy + math.floor((fb_m.y_top - fb_m.y_bottom) / 2)
+                RenderText:renderUtf8Text(bb, fb_x, fb_y, self.peg_face, fb_text, true, false, Blitbuffer.COLOR_BLACK)
+            end
         end
 
         -- Row separator line

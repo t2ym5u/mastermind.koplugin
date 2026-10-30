@@ -1,6 +1,8 @@
 return {
     ["You won in %1 attempt(s)!"]         = { fr = "Vous avez gagné en %1 tentative(s) !", es = "¡Ganaste en %1 intento(s)!", de = "Du hast in %1 Versuch(en) gewonnen!" },
-    ["Attempt %1/%2 — slot %3 selected"]  = { fr = "Tentative %1/%2 — case %3 sélectionnée", es = "Intento %1/%2 — casilla %3 seleccionada", de = "Versuch %1/%2 — Feld %3 ausgewählt" },
+    ["Code: %1"]                          = { fr = "Code : %1", es = "Código: %1", de = "Code: %1" },
+    ["Symbols: %1"]                       = { fr = "Symboles : %1", es = "Símbolos: %1", de = "Symbole: %1" },
+    ["Attempt: %1/%2"]                    = { fr = "Tentative : %1/%2", es = "Intento: %1/%2", de = "Versuch: %1/%2" },
     ["Fill all slots before submitting."] = { fr = "Remplissez toutes les cases avant de valider.", es = "Rellena todas las casillas antes de enviar.", de = "Fülle alle Felder aus, bevor du bestätigst." },
     ["Mastermind — Settings"]  = { fr = "Mastermind — Réglages", es = "Mastermind — Ajustes", de = "Mastermind — Einstellungen" },
     ["About"]       = { fr = "À propos", es = "Acerca de", de = "Über" },

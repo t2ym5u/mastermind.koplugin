@@ -6,6 +6,32 @@ Reconstructed from this repository's git history: each release lists the
 feature and fix commits it carried. Version bumps, screenshot additions
 and CI syncs are left out.
 
+## [1.2.0] - 2026-10-30
+
+### Added
+- "New game" once the code is cracked or the rows run out: the action bar
+  shows it in place of Submit and Clear, so the next game no longer needs
+  the menu.
+- The rules now explain how to play: select a slot, tap a number, Submit.
+
+### Changed
+- Redesigned play screen, in line with the other games: a full-width action
+  bar, the unified number pad, and a larger board that fills the available
+  room (it is now sized to the width too, not just the height). The status
+  line reads "Code: 4 · Symbols: 6 · Attempt: n/m" and wraps in landscape
+  instead of being cut off.
+- The selected slot is shown on the board itself with a much heavier
+  outline, instead of being named in the status line.
+- The feedback next to each guess is written on two lines ("B:n" over
+  "W:n"), which reads much larger in the narrow feedback column.
+- New README screenshot.
+
+### Fixed
+- The digits in the slots and the feedback text were sized off the slot
+  width and then scaled again by the screen DPI, so they overflowed their
+  slots on high-DPI screens. Both are now fitted to the room they have and
+  centred.
+
 ## [1.1.14] - 2026-10-07
 
 ### Fixed
