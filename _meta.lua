@@ -2,5 +2,5 @@ local _ = require("gettext")
 return {
     fullname    = _("Mastermind"),
     description = _("Deduce the secret code from black and white peg feedback."),
-    version     = "1.2.0",
+    version     = "1.2.1",
 }
