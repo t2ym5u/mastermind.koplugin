@@ -191,6 +191,7 @@ end
 -- ---------------------------------------------------------------------------
 
 function MastermindScreen:onNewGame()
+    self:cancelScheduled()  -- a pending end-of-game message belongs to the old game
     local board = self.board
     board.code_len         = self.plugin:getSetting("code_len",    4)
     board.num_symbols      = self.plugin:getSetting("num_symbols", 6)
@@ -224,7 +225,7 @@ function MastermindScreen:onSubmit()
 
     if self.board.solved then
         local n = self.board:getAttempts()
-        UIManager:scheduleIn(0.4, function()
+        self:schedule(0.4, function()
             self:showMessage(T(_("You won in %1 attempt(s)!"), n), 4)
         end)
     elseif self.board.failed then
@@ -232,7 +233,7 @@ function MastermindScreen:onSubmit()
         local parts  = {}
         for _, v in ipairs(secret) do parts[#parts + 1] = tostring(v) end
         local code_str = table.concat(parts, " ")
-        UIManager:scheduleIn(0.4, function()
+        self:schedule(0.4, function()
             self:showMessage(T(_("Game over! The secret code was: %1"), code_str), 5)
         end)
     end
